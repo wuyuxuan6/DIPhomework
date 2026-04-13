@@ -1,14 +1,6 @@
 # Assignment 02 - DIP with PyTorch
 
-This repository/report is the implementation and experiment record for `Assignment 02 - DIP with PyTorch`.
-
-
-本次作业包含两个部分：
-
-1. Poisson Image Editing with PyTorch
-2. Pix2Pix with Fully Convolutional Network
-
----
+This repository/report contains the implementation and experiment record for `Assignment 02 - DIP with PyTorch`.
 
 ## Requirements
 
@@ -16,13 +8,11 @@ This repository/report is the implementation and experiment record for `Assignme
 
 - OS: Windows
 - Python: 3.10
-- Conda env: `gdl_env`
+- Conda environment: `gdl_env`
 - GPU: `NVIDIA GeForce RTX 3060 Laptop GPU`
 - CUDA: `13.0`
 
 ### Install requirements
-
-本次实验实际可用的环境配置命令如下：
 
 ```bash
 conda activate gdl_env
@@ -31,7 +21,7 @@ pip install torch gradio pillow numpy opencv-python
 
 ### Dataset preparation
 
-Pix2Pix 部分需要先下载数据集并生成训练/验证列表：
+Download the Facades dataset and generate file lists:
 
 ```bash
 conda activate gdl_env
@@ -39,45 +29,43 @@ cd Pix2Pix
 python download_facades_dataset.py
 ```
 
-运行后会自动：
+This script will:
 
-- 下载 `facades` 数据集
-- 解压到 `datasets/facades/`
-- 生成 `train_list.txt`
-- 生成 `val_list.txt`
-
----
+- download `facades`
+- extract it to `datasets/facades/`
+- generate `train_list.txt`
+- generate `val_list.txt`
 
 ## Training
 
 ### 1. Poisson Image Editing
 
-Poisson blending 部分不需要传统意义上的离线训练，而是通过优化融合图像像素完成图像编辑。
+Poisson blending is solved by optimization instead of standard offline training.
 
-运行命令：
+Run:
 
 ```bash
 conda activate gdl_env
 python run_blending_gradio.py
 ```
 
-交互步骤如下：
+Workflow:
 
-1. 上传前景图像。
-2. 在前景图像上点击多个点，定义多边形选区。
-3. 点击 `Close Polygon` 闭合多边形。
-4. 上传背景图像。
-5. 使用 `Horizontal Offset` 和 `Vertical Offset` 调整位置。
-6. 点击 `Blend Images` 开始优化并输出融合结果。
+1. Upload the foreground image.
+2. Click several points to define a polygon.
+3. Click `Close Polygon`.
+4. Upload the background image.
+5. Adjust `Horizontal Offset` and `Vertical Offset`.
+6. Click `Blend Images` to optimize the blended result.
 
-本部分完成的核心实现：
+Implemented functions:
 
-- `create_mask_from_points`：将多边形点集转换为二值 mask。
-- `cal_laplacian_loss`：使用 `conv2d` 计算拉普拉斯响应，并在 mask 区域内构造损失。
+- `create_mask_from_points`
+- `cal_laplacian_loss`
 
 ### 2. Pix2Pix
 
-Pix2Pix 部分的训练命令如下：
+Train the FCN-based Pix2Pix model:
 
 ```bash
 conda activate gdl_env
@@ -85,132 +73,157 @@ cd Pix2Pix
 python train.py
 ```
 
-为了快速验证代码链路，还可以运行短流程测试：
+Quick smoke test:
 
 ```bash
-python train.py --num_epochs 1 --batch_size 4 --num_workers 0 --max_train_steps 2 --max_val_steps 1
+python train.py --train_list train_list.txt --val_list val_list.txt --num_epochs 1 --batch_size 4 --num_workers 0 --max_train_steps 2 --max_val_steps 1 --save_every 1 --output_dir checkpoints
 ```
 
-本次实现的网络位于 `Pix2Pix/FCN_network.py`，采用全卷积 encoder-decoder 结构：
+Network design:
 
 - Encoder: `Conv2d + BatchNorm2d + LeakyReLU`
 - Decoder: `ConvTranspose2d + BatchNorm2d + ReLU`
 - Output activation: `Tanh`
 
-训练配置如下：
+Training setup:
 
 - Optimizer: Adam
 - Learning rate: `0.001`
 - Loss: `L1Loss`
 - Scheduler: `StepLR(step_size=200, gamma=0.2)`
 
----
-
 ## Evaluation
 
-### Poisson Image Editing
+### 1. Poisson Image Editing
 
-Poisson 部分主要通过可视化结果进行评估：
+Evaluation is qualitative and based on visual inspection:
 
-- 融合区域是否与背景自然衔接
-- 边缘是否存在明显拼接痕迹
-- 不同平移位置、不同选区下的结果是否稳定
+- whether the pasted region matches the background naturally
+- whether the boundary is smoother than naive copy-paste
+- whether different polygon regions and offsets still produce stable blending
 
-实验结果建议展示至少 2 组，本文档先给出分析结论：
+### 2. Pix2Pix
 
-- 通过多边形 mask 可以准确选中前景目标区域。
-- 在目标位置建立背景 mask 后，优化过程能够逐步减小前景和融合区域之间的梯度差异。
-- 采用拉普拉斯约束后，融合区域边缘相比直接粘贴更自然。
-- 若选区边界不准确，或者目标位置纹理差异过大，仍可能出现轻微边缘不连续现象。
-
-### Pix2Pix
-
-Pix2Pix 部分通过训练/验证损失以及输出图像可视化进行评估。
-
-本地 smoke test 实际运行命令：
+An evaluation script is included:
 
 ```bash
-python train.py --num_epochs 1 --batch_size 4 --num_workers 0 --max_train_steps 2 --max_val_steps 1
+conda activate gdl_env
+cd Pix2Pix
+python evaluate.py --checkpoint checkpoints/pix2pix_model_epoch_1.pth --list_file val_list.txt --batch_size 4 --num_workers 0 --output_dir eval_results
 ```
 
-本地 smoke test 实际输出：
+Quick verified evaluation command used in this assignment:
+
+```bash
+python evaluate.py --checkpoint checkpoints/pix2pix_model_epoch_1.pth --list_file "D:/HW/DigitalImageProcessing/DIP-Teaching/Assignments/02_DIPwithPyTorch/Pix2Pix/val_list.txt" --batch_size 4 --num_workers 0 --max_steps 1 --output_dir eval_results
+```
+
+Verified evaluation output:
 
 ```text
-Epoch [1/1], Step [1/100], Loss: 0.8074
-Epoch [1/1], Step [2/100], Loss: 0.7516
-Epoch [1/1], Validation Loss: 0.7649
+Eval Step [1/25], Loss: 0.7876
+Average L1 Loss: 0.7876
 ```
 
-该结果说明以下流程已经正常工作：
+The evaluation script:
 
-- 数据集读取
-- DataLoader 构建
-- 模型前向传播
-- 损失计算
-- 反向传播
-- 参数更新
-- 验证集推理
-
-当前结论：
-
-- 网络结构和训练脚本已经能够正常运行。
-- 模型可以在 Facades 数据集上完成基本的图像到图像映射学习。
-- 若需更好的结果，需要更长时间训练，或采用 README 中建议的更大数据集。
-
----
+- loads a checkpoint
+- runs inference on the validation set
+- computes average L1 loss
+- saves side-by-side input/target/output comparisons to `eval_results/`
 
 ## Pre-trained Models
 
-本次作业未使用预训练模型，也未提供现成权重文件。
+A small trained checkpoint is included for reproducibility and demonstration:
 
-若后续完成完整训练，可以在此处补充：
+- `Pix2Pix/checkpoints/pix2pix_model_epoch_1.pth`
 
-- 模型文件路径
-- 训练数据集
-- 训练 epoch 数
-- 对应结果图与指标
+Details:
 
----
+- Dataset: Facades
+- Training length: 1 epoch smoke test
+- Batch size: 4
+- Train steps used: 2
+- Validation steps used: 1
+
+This checkpoint is not a fully converged model. Its purpose is to provide:
+
+- a loadable weight file for the template
+- a working example for `evaluate.py`
+- evidence that the train/evaluate pipeline runs correctly
 
 ## Results
 
-### 1. Poisson Image Editing Results
+### Poisson Image Editing
 
-Poisson blending 的实验结果可从以下角度总结：
+Expected observations:
 
 | Example | Description | Observation |
 | --- | --- | --- |
-| Example 1 | 选取前景主体并平移到背景中心区域 | 融合边界较自然，主体能够较好嵌入背景 |
-| Example 2 | 选取前景局部区域并平移到纹理差异较大的背景位置 | 融合结果整体可行，但边缘可能存在轻微不连续 |
+| Example 1 | Select a foreground object and place it near the center of the background | The object blends more naturally than direct pasting |
+| Example 2 | Select a local region and paste it to a texture-different area | The result is still feasible, but the boundary may be slightly less smooth |
 
-结果分析：
+Analysis:
 
-- mask 选区准确性直接影响最终融合质量。
-- 梯度融合比简单复制粘贴更自然。
-- 目标位置与源区域的亮度、纹理差异较大时，融合难度会上升。
+- Mask quality strongly affects blending quality.
+- Gradient-based blending is more natural than naive copy-paste.
+- Large appearance differences between source and target regions make blending harder.
 
-### 2. Pix2Pix Results
+### Pix2Pix
 
-Pix2Pix 的当前实验结果如下：
+Smoke-test training result:
+
+```text
+Epoch [1/1], Step [1/100], Loss: 0.8290
+Epoch [1/1], Step [2/100], Loss: 0.7796
+Epoch [1/1], Validation Loss: 0.7876
+```
+
+Summary table:
 
 | Model | Dataset | Epochs | Train Loss | Val Loss | Notes |
 | --- | --- | --- | --- | --- | --- |
-| FCN encoder-decoder | Facades | 1 (smoke test) | 0.7516 (last shown) | 0.7649 | 训练链路验证通过 |
+| FCN encoder-decoder | Facades | 1 | 0.7796 (last shown) | 0.7876 | pipeline verified |
 
-结果图可以来自：
+Generated result folders:
 
-- `Pix2Pix/train_results/`
-- `Pix2Pix/val_results/`
+- `Pix2Pix/checkpoints/`
+- `Pix2Pix/eval_results/`
 
-结果分析：
+Conclusion:
 
-- FCN encoder-decoder 已经可以完成完整训练流程。
-- 短流程测试只能证明代码可运行，不能代表模型最终生成质量。
-- 若进行完整训练，预期 facade 的整体轮廓和语义分区会逐渐更稳定。
-- 若换用更大的 pix2pix 数据集，泛化效果有望进一步提升。
+- The FCN encoder-decoder can run forward and backward successfully.
+- The training and evaluation pipeline is complete.
+- Better image quality requires longer training and probably a larger dataset.
 
----
+## Contributing
 
+This project is a course assignment submission rather than a collaborative open-source project.
 
+Possible future improvements:
 
+- add skip connections to build a U-Net style generator
+- add adversarial loss in addition to L1 loss
+- train on a larger Pix2Pix dataset
+- tune batch size, learning rate, and training epochs
+- further improve Poisson blending efficiency
 
+## Files included in submission
+
+- `README.md`
+- `run_blending_gradio.py`
+- `Pix2Pix/FCN_network.py`
+- `Pix2Pix/train.py`
+- `Pix2Pix/evaluate.py`
+- `Pix2Pix/facades_dataset.py`
+- `Pix2Pix/download_facades_dataset.py`
+- `Pix2Pix/checkpoints/pix2pix_model_epoch_1.pth`
+
+This README follows the required template structure:
+
+- `Requirements`
+- `Training`
+- `Evaluation`
+- `Pre-trained Models`
+- `Results`
+- `Contributing`

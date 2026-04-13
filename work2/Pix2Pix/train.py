@@ -145,6 +145,8 @@ def validate(model, dataloader, criterion, device, epoch, num_epochs, max_steps=
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train Pix2Pix FCN on facades dataset.")
+    parser.add_argument("--train_list", type=str, default="train_list.txt")
+    parser.add_argument("--val_list", type=str, default="val_list.txt")
     parser.add_argument("--batch_size", type=int, default=100)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--num_epochs", type=int, default=300)
@@ -153,6 +155,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--max_train_steps", type=int, default=None)
     parser.add_argument("--max_val_steps", type=int, default=None)
+    parser.add_argument("--output_dir", type=str, default="checkpoints")
     return parser.parse_args()
 
 
@@ -166,8 +169,8 @@ def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # Initialize datasets and dataloaders
-    train_dataset = FacadesDataset(list_file='train_list.txt')
-    val_dataset = FacadesDataset(list_file='val_list.txt')
+    train_dataset = FacadesDataset(list_file=args.train_list)
+    val_dataset = FacadesDataset(list_file=args.val_list)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
@@ -191,8 +194,8 @@ def main():
 
         # Save model checkpoint every 50 epochs
         if (epoch + 1) % args.save_every == 0:
-            os.makedirs('checkpoints', exist_ok=True)
-            torch.save(model.state_dict(), f'checkpoints/pix2pix_model_epoch_{epoch + 1}.pth')
+            os.makedirs(args.output_dir, exist_ok=True)
+            torch.save(model.state_dict(), os.path.join(args.output_dir, f'pix2pix_model_epoch_{epoch + 1}.pth'))
 
 if __name__ == '__main__':
     main()
