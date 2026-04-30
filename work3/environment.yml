@@ -1,0 +1,14 @@
+name: ba_env
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.10
+  - numpy
+  - matplotlib
+  - opencv
+  - colmap
+  - pip
+  - pip:
+      - --index-url https://download.pytorch.org/whl/cpu
+      - torch
